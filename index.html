@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đà Nẵng Trip Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 16px; margin-bottom: 16px; }
+        input, select { border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; width: 100%; outline: none; transition: border 0.2s; }
+        input:focus, select:focus { border-color: #3b82f6; ring: 2px ring #3b82f6; }
+        .btn-add { background-color: #2563eb; color: white; font-weight: 600; padding: 12px; border-radius: 8px; width: 100%; transition: background 0.2s; }
+        .btn-add:active { background-color: #1d4ed8; transform: scale(0.98); }
+        .btn-delete { color: #ef4444; font-size: 0.875rem; font-weight: 500; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        th { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; padding: 8px; text-align: left; }
+        td { padding: 10px 8px; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div class="max-w-md mx-auto px-4 pt-6">
+        <header class="mb-6 text-center">
+            <h1 class="text-2xl font-bold text-blue-600">Đà Nẵng Trip 🌊</h1>
+            <p class="text-gray-500 text-sm">Quản lý chi phí 5 ngày 4 đêm</p>
+        </header>
+
+        <!-- DASHBOARD -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="card col-span-2 bg-blue-600 text-white">
+                <p class="text-xs opacity-80">Tổng chi phí chuyến đi</p>
+                <h2 id="total-all" class="text-2xl font-bold">0đ</h2>
+            </div>
+            <div class="card mb-0">
+                <p class="text-[10px] uppercase text-gray-500 font-bold">Ngày 0 (Chuẩn bị)</p>
+                <p id="total-d0" class="text-lg font-semibold text-gray-800">0đ</p>
+            </div>
+            <div class="card mb-0">
+                <p class="text-[10px] uppercase text-gray-500 font-bold">Ngày 1 - 5 (Du lịch)</p>
+                <p id="total-d15" class="text-lg font-semibold text-gray-800">0đ</p>
+            </div>
+        </div>
+
+        <!-- NHẬP CHI PHÍ -->
+        <div class="card">
+            <h3 class="font-bold mb-3 text-gray-700">Thêm khoản chi mới</h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500">Ngày</label>
+                        <select id="input-day">
+                            <option value="0">Ngày 0</option>
+                            <option value="1">Ngày 1</option>
+                            <option value="2">Ngày 2</option>
+                            <option value="3">Ngày 3</option>
+                            <option value="4">Ngày 4</option>
+                            <option value="5">Ngày 5</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-500">Nhóm chi phí</label>
+                        <select id="input-category">
+                            <option value="Mua sắm đồ">Mua sắm đồ</option>
+                            <option value="Vé máy bay">Vé máy bay</option>
+                            <option value="Khách sạn">Khách sạn</option>
+                            <option value="Taxi">Taxi</option>
+                            <option value="Ăn uống">Ăn uống</option>
+                            <option value="Khu vui chơi">Khu vui chơi</option>
+                            <option value="Mua quà">Mua quà</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500">Nội dung</label>
+                    <input type="text" id="input-note" placeholder="Ví dụ: Ăn mì quảng...">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-500">Số tiền (VNĐ)</label>
+                    <input type="number" id="input-amount" placeholder="0">
+                </div>
+                <button onclick="addExpense()" class="btn-add">Thêm Chi Phí</button>
+            </div>
+        </div>
+
+        <!-- BIỂU ĐỒ -->
+        <div class="card">
+            <h3 class="font-bold mb-4 text-gray-700">Cơ cấu chi tiêu</h3>
+            <div class="chart-container">
+                <canvas id="expenseChart"></canvas>
+            </div>
+        </div>
+
+        <!-- BẢNG TỔNG THEO NGÀY -->
+        <div class="card">
+            <h3 class="font-bold mb-3 text-gray-700">Tổng quan theo ngày</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th class="text-right">Tổng tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody id="daily-summary-body">
+                        <!-- JS render -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- BẢNG CHI TIẾT -->
+        <div class="card">
+            <h3 class="font-bold mb-3 text-gray-700">Chi tiết giao dịch</h3>
+            <div class="overflow-x-auto overflow-y-auto max-h-96">
+                <table class="w-full text-left">
+                    <thead class="sticky top-0 bg-white">
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Nhóm/Nội dung</th>
+                            <th class="text-right">Số tiền</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-table-body">
+                        <!-- JS render -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let expenses = JSON.parse(localStorage.getItem('danang_expenses')) || [];
+        let myChart = null;
+
+        const categories = ["Mua sắm đồ", "Vé máy bay", "Khách sạn", "Taxi", "Ăn uống", "Khu vui chơi", "Mua quà", "Khác"];
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#6b7280'];
+
+        function formatMoney(amount) {
+            return new Intl.NumberFormat('vi-VN').format(amount) + ' ₫';
+        }
+
+        function saveData() {
+            localStorage.setItem('danang_expenses', JSON.stringify(expenses));
+            updateUI();
+        }
+
+        function addExpense() {
+            const day = document.getElementById('input-day').value;
+            const category = document.getElementById('input-category').value;
+            const note = document.getElementById('input-note').value.trim() || category;
+            const amount = parseInt(document.getElementById('input-amount').value);
+
+            if (!amount || amount <= 0) {
+                alert("Vui lòng nhập số tiền hợp lệ");
+                return;
+            }
+
+            const item = {
+                id: Date.now(),
+                day: parseInt(day),
+                category,
+                note,
+                amount
+            };
+
+            expenses.push(item);
+            document.getElementById('input-note').value = '';
+            document.getElementById('input-amount').value = '';
+            saveData();
+        }
+
+        function deleteExpense(id) {
+            if(confirm('Xóa khoản chi này?')) {
+                expenses = expenses.filter(e => e.id !== id);
+                saveData();
+            }
+        }
+
+        function updateUI() {
+            // 1. Tính toán Dashboard
+            let totalAll = 0;
+            let totalD0 = 0;
+            let totalD15 = 0;
+            let daySums = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0};
+            let catSums = {};
+
+            categories.forEach(c => catSums[c] = 0);
+
+            expenses.forEach(e => {
+                totalAll += e.amount;
+                daySums[e.day] += e.amount;
+                catSums[e.category] += e.amount;
+                if (e.day === 0) totalD0 += e.amount;
+                else totalD15 += e.amount;
+            });
+
+            document.getElementById('total-all').innerText = formatMoney(totalAll);
+            document.getElementById('total-d0').innerText = formatMoney(totalD0);
+            document.getElementById('total-d15').innerText = formatMoney(totalD15);
+
+            // 2. Render Bảng tổng theo ngày
+            let dailyHtml = '';
+            for (let i = 0; i <= 5; i++) {
+                dailyHtml += `
+                    <tr>
+                        <td class="font-medium">Ngày ${i} ${i==0 ? '<span class="text-[10px] text-gray-400">(Chuẩn bị)</span>' : ''}</td>
+                        <td class="text-right font-bold text-gray-700">${formatMoney(daySums[i])}</td>
+                    </tr>
+                `;
+            }
+            document.getElementById('daily-summary-body').innerHTML = dailyHtml;
+
+            // 3. Render Bảng chi tiết
+            let detailHtml = '';
+            // Sắp xếp ngày mới nhất lên đầu, sau đó mới đến ID
+            const sortedExpenses = [...expenses].sort((a, b) => b.day - a.day || b.id - a.id);
+            
+            sortedExpenses.forEach(e => {
+                detailHtml += `
+                    <tr>
+                        <td class="text-xs text-gray-500">N.0${e.day}</td>
+                        <td>
+                            <div class="font-bold text-xs text-blue-600">${e.category}</div>
+                            <div class="text-xs text-gray-600">${e.note}</div>
+                        </td>
+                        <td class="text-right font-semibold">${formatMoney(e.amount)}</td>
+                        <td class="text-right">
+                            <button onclick="deleteExpense(${e.id})" class="btn-delete">✕</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('detail-table-body').innerHTML = detailHtml || '<tr><td colspan="4" class="text-center text-gray-400 py-4">Chưa có dữ liệu</td></tr>';
+
+            renderChart(catSums, totalAll);
+        }
+
+        function renderChart(catSums, totalAll) {
+            const chartData = categories.map(cat => catSums[cat]).filter(val => val > 0);
+            const chartLabels = categories.filter(cat => catSums[cat] > 0);
+            const chartColors = colors.filter((_, index) => catSums[categories[index]] > 0);
+
+            if (myChart) myChart.destroy();
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            
+            if (chartData.length === 0) {
+                ctx.font = "14px Inter";
+                ctx.textAlign = "center";
+                ctx.fillText("Chưa có dữ liệu biểu đồ", ctx.canvas.width/2, ctx.canvas.height/2);
+                return;
+            }
+
+            myChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: chartColors,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 15,
+                                font: { size: 11 },
+                                generateLabels: (chart) => {
+                                    const data = chart.data;
+                                    return data.labels.map((label, i) => {
+                                        const value = data.datasets[0].data[i];
+                                        const percentage = ((value / totalAll) * 100).toFixed(1);
+                                        return {
+                                            text: `${label}: ${formatMoney(value)} (${percentage}%)`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            index: i
+                                        };
+                                    });
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const percent = ((value / totalAll) * 100).toFixed(1);
+                                    return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Khởi tạo
+        updateUI();
+    </script>
+</body>
+</html>
